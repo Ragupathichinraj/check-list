@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ragupathi's SkyllX Study Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --surface: #11141b;
+    --card: #161922;
+    --border: #222736;
+    --border-lit: #374057;
+    --text: #e8eaf0;
+    --muted: #6a738f;
+    --sql-bg: #0e2040; --sql: #4da6ff; --sql-dim: #162e52;
+    --py-bg: #0d2218;  --py: #3ecf72;  --py-dim: #133325;
+    --xl-bg: #1f1800;  --xl: #f0b429;  --xl-dim: #302400;
+    --bi-bg: #1a0f2e;  --bi: #b57bff;  --bi-dim: #2c1a4a;
+    --done-bg: #0f1a0f;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(77,166,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(77,166,255,.025) 1px, transparent 1px);
+    background-size: 36px 36px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 18px; position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  header { padding: 44px 0 28px; text-align: center; }
+  .platform-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #111827; border: 1px solid #374057;
+    color: var(--muted); font-family: 'Space Mono', monospace;
+    font-size: 10px; padding: 5px 14px; border-radius: 999px;
+    margin-bottom: 18px; letter-spacing: 0.06em;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--py); animation: blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  h1 { font-size: clamp(22px,4.5vw,38px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 8px; }
+  h1 .hl-sql { color: var(--sql); }
+  h1 .hl-py  { color: var(--py); }
+  .sub { color: var(--muted); font-size: 13px; font-weight: 300; margin-bottom: 10px; }
+  .name-tag {
+    display: inline-block;
+    background: var(--surface); border: 1px solid var(--border-lit);
+    color: var(--text); font-size: 12px; padding: 4px 14px;
+    border-radius: 999px; margin-bottom: 32px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── PHASE BANNER ── */
+  .phase-banner {
+    display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .phase-card {
+    flex: 1; min-width: 140px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    position: relative; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .phase-card.active { border-color: var(--sql); }
+  .phase-card.active.py { border-color: var(--py); }
+  .phase-card.next { opacity: .5; }
+  .phase-num {
+    font-family: 'Space Mono', monospace; font-size: 9px;
+    color: var(--muted); letter-spacing: .1em; margin-bottom: 4px;
+  }
+  .phase-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .phase-sub { font-size: 10px; color: var(--muted); }
+  .phase-bar-wrap { margin-top: 8px; background: var(--border); border-radius: 999px; height: 4px; }
+  .phase-bar { height: 4px; border-radius: 999px; transition: width .5s; }
+  .phase-sql .phase-bar { background: var(--sql); }
+  .phase-py  .phase-bar { background: var(--py); }
+  .phase-xl  .phase-bar { background: var(--xl); }
+  .phase-bi  .phase-bar { background: var(--bi); }
+  .phase-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 9px; font-family: 'Space Mono', monospace;
+    padding: 2px 8px; border-radius: 999px; font-weight: 700;
+  }
+  .badge-now { background: var(--sql-dim); color: var(--sql); }
+  .badge-py  { background: var(--py-dim); color: var(--py); }
+  .badge-next{ background: var(--border); color: var(--muted); }
+
+  /* ── OVERALL PROGRESS ── */
+  .overall {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px;
+  }
+  .overall-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .overall-label { font-size: 12px; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .overall-pct   { font-size: 13px; font-weight: 600; font-family: 'Space Mono', monospace; color: var(--py); }
+  .bar-track { background: var(--border); border-radius: 999px; height: 7px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--sql), var(--py)); transition: width .6s cubic-bezier(.4,0,.2,1); width: 0%; }
+
+  /* ── MINI STATS ── */
+  .mini-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 22px; }
+  .mstat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 10px; text-align: center; }
+  .mstat-n { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+  .mstat-l { font-size: 10px; color: var(--muted); }
+  #ms-done .mstat-n { color: var(--py); }
+  #ms-sql  .mstat-n { color: var(--sql); }
+  #ms-py   .mstat-n { color: var(--py); }
+  #ms-str  .mstat-n { color: #f5c842; }
+
+  /* ── SECTION TABS ── */
+  .section-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stab {
+    padding: 7px 18px; border-radius: 999px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-family: 'Sora', sans-serif; font-size: 12px;
+    cursor: pointer; transition: all .18s;
+  }
+  .stab:hover { border-color: var(--border-lit); color: var(--text); }
+  .stab.active-sql { background: var(--sql-dim); border-color: var(--sql); color: var(--sql); }
+  .stab.active-py  { background: var(--py-dim);  border-color: var(--py);  color: var(--py); }
+  .stab.active-xl  { background: var(--xl-dim);  border-color: var(--xl);  color: var(--xl); }
+  .stab.active-bi  { background: var(--bi-dim);  border-color: var(--bi);  color: var(--bi); }
+  .stab.active-all { background: var(--surface); border-color: var(--border-lit); color: var(--text); }
+
+  /* ── COURSE SECTIONS ── */
+  .course-block { margin-bottom: 28px; }
+  .course-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-radius: var(--radius);
+    margin-bottom: 8px; border: 1px solid var(--border);
+  }
+  .course-header.sql { background: var(--sql-dim); border-color: var(--sql); }
+  .course-header.py  { background: var(--py-dim);  border-color: var(--py); }
+  .course-header.xl  { background: var(--xl-dim);  border-color: var(--xl); }
+  .course-header.bi  { background: var(--bi-dim);  border-color: var(--bi); }
+
+  .ch-icon { font-size: 18px; }
+  .ch-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .ch-count { font-size: 11px; font-family: 'Space Mono', monospace; opacity: .8; }
+  .ch-pbar-wrap { width: 80px; background: rgba(0,0,0,.3); border-radius: 999px; height: 5px; }
+  .ch-pbar { height: 5px; border-radius: 999px; transition: width .4s; }
+  .sql .ch-pbar { background: var(--sql); }
+  .py  .ch-pbar { background: var(--py); }
+  .xl  .ch-pbar { background: var(--xl); }
+  .bi  .ch-pbar { background: var(--bi); }
+
+  /* ── DAY ROW ── */
+  .day-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 5px;
+    cursor: pointer; transition: all .15s; user-select: none;
+    position: relative; overflow: hidden;
+  }
+  .day-row::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  }
+  .day-row.sql::before { background: var(--sql-dim); }
+  .day-row.py::before  { background: var(--py-dim); }
+  .day-row.xl::before  { background: var(--xl-dim); }
+  .day-row.bi::before  { background: var(--bi-dim); }
+  .day-row:hover { border-color: var(--border-lit); transform: translateX(2px); }
+  .day-row.done { opacity: .5; background: var(--surface); }
+  .day-row.done .task-text { text-decoration: line-through; color: var(--muted); }
+
+  .cb {
+    width: 20px; height: 20px; flex-shrink: 0;
+    border: 2px solid var(--border-lit); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .18s;
+  }
+  .day-row.sql.done .cb { background: var(--sql); border-color: var(--sql); }
+  .day-row.py.done  .cb { background: var(--py);  border-color: var(--py); }
+  .day-row.xl.done  .cb { background: var(--xl);  border-color: var(--xl); }
+  .day-row.bi.done  .cb { background: var(--bi);  border-color: var(--bi); }
+  .checkmark { display: none; width: 11px; height: 11px; }
+  .day-row.done .checkmark { display: block; }
+
+  .day-num {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: var(--muted); min-width: 30px;
+  }
+  .task-text { flex: 1; font-size: 12.5px; line-height: 1.4; }
+  .date-stamp { font-size: 10px; color: var(--muted); font-family: 'Space Mono', monospace; min-width: 55px; text-align: right; flex-shrink: 0; }
+
+  /* ── SKYLLX PROGRESS NOTE ── */
+  .skyllx-note {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--sql);
+    border-radius: var(--radius); padding: 12px 16px;
+    margin-bottom: 22px; font-size: 12px; color: var(--muted);
+    line-height: 1.6;
+  }
+  .skyllx-note strong { color: var(--text); }
+
+  /* existing progress highlight */
+  .day-row.skyllx-done { border-color: var(--border-lit); }
+
+  .reset-btn {
+    display: block; margin: 28px auto 0;
+    padding: 9px 26px; background: transparent;
+    border: 1px solid var(--border); border-radius: 999px;
+    color: var(--muted); font-family: 'Sora', sans-serif;
+    font-size: 12px; cursor: pointer; transition: all .2s;
+  }
+  .reset-btn:hover { border-color: #c0392b; color: #e74c3c; }
+
+  footer { padding: 36px 0 28px; text-align: center; color: var(--muted); font-size: 10px; font-family: 'Space Mono', monospace; }
+
+  .firework { position: fixed; pointer-events: none; font-size: 20px; animation: fw .7s ease-out forwards; z-index: 999; }
+  @keyframes fw { 0%{opacity:1;transform:scale(.5) translateY(0)} 100%{opacity:0;transform:scale(1.6) translateY(-60px)} }
+
+  @media(max-width:540px) {
+    .mini-stats { grid-template-columns: repeat(2,1fr); }
+    .phase-banner { flex-direction: column; }
+    .day-num { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="platform-badge"><div class="dot"></div> SKYLLX · DATA ANALYTICS COURSE</div>
+  <h1>Ragupathi's<br><span class="hl-sql">SQL</span> &amp; <span class="hl-py">Python</span> Tracker</h1>
+  <p class="sub">Finish SQL (30 items) + Python (55 items) first · Then Excel & Power BI</p>
+  <div class="name-tag">craghu9439@gmail.com</div>
+</header>
+
+<!-- SKYLLX SYNC NOTE -->
+<div class="skyllx-note">
+  📌 <strong>Your SkyllX progress detected:</strong>
+  SQL Classes 5/30 completed · Python Classes 9/55 completed · Excel 3/19 · Power BI 1/9.
+  Your existing progress is pre-marked below. Keep going — finish <strong>SQL → Python</strong> first!
+</div>
+
+<!-- PHASE CARDS -->
+<div class="phase-banner">
+  <div class="phase-card phase-sql active">
+    <div class="phase-badge badge-now">NOW</div>
+    <div class="phase-num">PHASE 1</div>
+    <div class="phase-title" style="color:var(--sql)">SQL Classes</div>
+    <div class="phase-sub">30 lessons · 5 done</div>
+    <div class="phase-bar-wrap"><div class="phase-bar" id="bar-sql" style="width:16.7%"></div></div>
+  </div>
+  <div class="phase-card phase-py">
+    <div class="phase-badge badge-py">NEXT</div>
+    <div class="phase-num">PHASE 2</div>
+    <div class="phase-title" style="color:var(--py)">Python Classes</div>
+    <div class="phase-sub">55 lessons · 9 done</div>
+    <div class="phase-bar-wrap"><div class="phase-bar" id="bar-py" style="width:16.4%"></div></div>
+  </div>
+  <div class="phase-card phase-xl next">
+    <div class="phase-badge badge-next">LATER</div>
+    <div class="phase-num">PHASE 3</div>
+    <div class="phase-title" style="color:var(--xl)">Excel Classes</div>
+    <div class="phase-sub">19 lessons · 3 done</div>
+    <div class="phase-bar-wrap"><div class="phase-bar" id="bar-xl" style="width:15.8%"></div></div>
+  </div>
+  <div class="phase-card phase-bi next">
+    <div class="phase-badge badge-next">LATER</div>
+    <div class="phase-num">PHASE 4</div>
+    <div class="phase-title" style="color:var(--bi)">Power BI</div>
+    <div class="phase-sub">9 lessons · 1 done</div>
+    <div class="phase-bar-wrap"><div class="phase-bar" id="bar-bi" style="width:11.1%"></div></div>
+  </div>
+</div>
+
+<!-- OVERALL PROGRESS -->
+<div class="overall">
+  <div class="overall-row">
+    <span class="overall-label">Total course progress (SQL + Python focus)</span>
+    <span class="overall-pct" id="ovr-pct">0%</span>
+  </div>
+  <div class="bar-track"><div class="bar-fill" id="ovr-bar"></div></div>
+</div>
+
+<!-- MINI STATS -->
+<div class="mini-stats">
+  <div class="mstat" id="ms-done"><div class="mstat-n" id="n-done">0</div><div class="mstat-l">Completed</div></div>
+  <div class="mstat" id="ms-sql"> <div class="mstat-n" id="n-sql">0</div> <div class="mstat-l">SQL done</div></div>
+  <div class="mstat" id="ms-py">  <div class="mstat-n" id="n-py">0</div>  <div class="mstat-l">Python done</div></div>
+  <div class="mstat" id="ms-str"> <div class="mstat-n" id="n-str">0</div> <div class="mstat-l">Day Streak</div></div>
+</div>
+
+<!-- SECTION FILTER TABS -->
+<div class="section-tabs">
+  <button class="stab active-all" onclick="setFilter('all',this)">All Courses</button>
+  <button class="stab" onclick="setFilter('sql',this)">SQL (30)</button>
+  <button class="stab" onclick="setFilter('py', this)">Python (55)</button>
+  <button class="stab" onclick="setFilter('xl', this)">Excel (19)</button>
+  <button class="stab" onclick="setFilter('bi', this)">Power BI (9)</button>
+  <button class="stab" onclick="setFilter('todo',this)">Pending</button>
+  <button class="stab" onclick="setFilter('done',this)">Done</button>
+</div>
+
+<div id="list"></div>
+
+<button class="reset-btn" onclick="resetAll()">Reset My Progress</button>
+
+<footer>
+  Ragupathi C. &nbsp;·&nbsp; AI & Data Science &nbsp;·&nbsp; Paavai College of Engineering &nbsp;·&nbsp; 2026<br>
+  Progress auto-saved in browser · SkyllX Data Analytics Course
+</footer>
+</div>
+
+<script>
+// ── COURSE DATA ──────────────────────────────────────────────────────────
+const COURSES = {
+  sql: {
+    label: "SQL Classes", color: "sql", total: 30,
+    skyllx_done: 5, // from screenshot
+    items: [
+      "Introduction to Databases & SQL",
+      "SQL Languages & Commands (DDL, DML, DQL, DCL, TCL)",
+      "CREATE, ALTER, DROP — DDL commands",
+      "INSERT, UPDATE, DELETE — DML commands",
+      "SELECT & WHERE — Basic queries",
+      "ORDER BY, LIMIT, DISTINCT",
+      "SQL Day 7 — currently watching",
+      "Aggregate Functions: SUM, COUNT, AVG, MIN, MAX",
+      "GROUP BY & HAVING clause",
+      "JOINs — INNER JOIN",
+      "JOINs — LEFT & RIGHT JOIN",
+      "JOINs — FULL OUTER & CROSS JOIN",
+      "Subqueries & Nested SELECT",
+      "UNION, INTERSECT, EXCEPT",
+      "String Functions — UPPER, LOWER, CONCAT, TRIM",
+      "Date & Time Functions",
+      "NULL handling — IS NULL, COALESCE, IFNULL",
+      "CASE WHEN statements",
+      "Window Functions — ROW_NUMBER, RANK, DENSE_RANK",
+      "Window Functions — LEAD, LAG, NTILE",
+      "CTEs — WITH clause",
+      "Indexes — Types & Usage",
+      "Views — CREATE & MANAGE",
+      "Stored Procedures basics",
+      "Triggers in SQL",
+      "Transactions — COMMIT, ROLLBACK, SAVEPOINT",
+      "Query Optimization techniques",
+      "Connecting SQL with Python (sqlite3)",
+      "SQL Project — E-commerce database queries",
+      "SQL Final Assessment & Review",
+    ]
+  },
+  py: {
+    label: "Python Classes", color: "py", total: 55,
+    skyllx_done: 9,
+    items: [
+      "Python Introduction & Setup",
+      "Variables & Data Types",
+      "String operations & methods",
+      "Numeric operations & math module",
+      "Boolean & Comparison operators",
+      "Conditionals — if / elif / else",
+      "Loops — for loop",
+      "Loops — while loop",
+      "Loop control — break, continue, pass",
+      "Functions — def, return",
+      "Function arguments & *args, **kwargs",
+      "Lambda functions",
+      "List — creation & indexing",
+      "List methods — append, remove, sort",
+      "List comprehensions",
+      "Tuples — immutable sequences",
+      "Dictionaries — key-value pairs",
+      "Dictionary methods & comprehensions",
+      "Sets — operations & methods",
+      "File I/O — reading & writing files",
+      "Working with CSV files",
+      "Exception handling — try / except",
+      "Custom exceptions & finally",
+      "Modules & import system",
+      "pip & virtual environments",
+      "OOP — Classes & Objects",
+      "OOP — __init__ & instance methods",
+      "OOP — Inheritance",
+      "OOP — Polymorphism & Encapsulation",
+      "Regular expressions — re module",
+      "Date & Time — datetime module",
+      "NumPy — arrays & operations",
+      "NumPy — array slicing & broadcasting",
+      "Pandas — Series & DataFrame",
+      "Pandas — load CSV & Excel",
+      "Pandas — filtering & selection",
+      "Pandas — groupby & aggregation",
+      "Pandas — merge, join, concat",
+      "Pandas — handling missing data",
+      "Pandas — apply & lambda",
+      "Matplotlib — line & bar charts",
+      "Matplotlib — scatter & pie charts",
+      "Seaborn — heatmaps & pair plots",
+      "Data Cleaning project",
+      "Exploratory Data Analysis (EDA)",
+      "Statistics — mean, median, std, correlation",
+      "Python + SQL — sqlite3 integration",
+      "Python + SQL — data pipeline",
+      "Web scraping basics — requests & BeautifulSoup",
+      "APIs — fetch JSON data",
+      "Machine Learning intro — scikit-learn",
+      "Linear Regression with Python",
+      "Classification — Decision Tree",
+      "Python Capstone Project — Data Analysis",
+      "Final Assessment & Review",
+    ]
+  },
+  xl: {
+    label: "Excel Classes", color: "xl", total: 19,
+    skyllx_done: 3,
+    items: [
+      "Excel Interface & Navigation",
+      "Data Entry & Formatting",
+      "Basic Formulas — SUM, AVERAGE, COUNT",
+      "IF, SUMIF, COUNTIF functions",
+      "VLOOKUP & HLOOKUP",
+      "INDEX & MATCH",
+      "Conditional Formatting",
+      "Sorting & Filtering data",
+      "Pivot Tables — creation",
+      "Pivot Tables — advanced",
+      "Charts — bar, line, pie",
+      "Excel Tables & Data Validation",
+      "Text Functions — LEFT, RIGHT, MID, LEN",
+      "Date Functions in Excel",
+      "Named Ranges & Data Models",
+      "Power Query — import & transform",
+      "Macros & basic VBA",
+      "Dashboard creation",
+      "Excel Final Project",
+    ]
+  },
+  bi: {
+    label: "Power BI", color: "bi", total: 9,
+    skyllx_done: 1,
+    items: [
+      "Power BI Desktop — Introduction",
+      "Connecting data sources",
+      "Power Query Editor",
+      "Data Modelling & Relationships",
+      "DAX — basic measures",
+      "Visualisations — bar, line, card",
+      "Slicers, Filters & Drill-through",
+      "Dashboard design & publishing",
+      "Power BI Final Project",
+    ]
+  }
+};
+
+const KEY = "skyllx_tracker_v1";
+let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+// Pre-mark existing SkyllX progress on first load
+function initSkyllxProgress() {
+  const preKey = "skyllx_init_done";
+  if (localStorage.getItem(preKey)) return;
+  Object.entries(COURSES).forEach(([cid, course]) => {
+    for (let i = 0; i < course.skyllx_done; i++) {
+      const k = `${cid}_${i}`;
+      if (!state[k]) state[k] = "SkyllX";
+    }
+  });
+  localStorage.setItem(KEY, JSON.stringify(state));
+  localStorage.setItem(preKey, "1");
+}
+initSkyllxProgress();
+
+let currentFilter = "all";
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function toggle(cid, idx) {
+  const k = `${cid}_${idx}`;
+  if (state[k]) { delete state[k]; }
+  else { state[k] = new Date().toLocaleDateString("en-IN", {day:"2-digit",month:"short"}); celebrate(); }
+  save(); render();
+}
+
+function celebrate() {
+  ["⭐","✅","🔥","💡","🎯"].forEach((e,i) => {
+    setTimeout(() => {
+      const el = document.createElement("div");
+      el.className = "firework"; el.textContent = e;
+      el.style.left = (15 + Math.random()*70) + "vw";
+      el.style.top = (15 + Math.random()*45) + "vh";
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 800);
+    }, i * 90);
+  });
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll(".stab").forEach(t => t.className = "stab");
+  const cls = {all:"active-all",sql:"active-sql",py:"active-py",xl:"active-xl",bi:"active-bi",todo:"active-all",done:"active-all"}[f];
+  btn.classList.add(cls||"active-all");
+  render();
+}
+
+function updateStats() {
+  let sqlDone=0, pyDone=0, totalDone=0;
+  Object.entries(COURSES).forEach(([cid,course]) => {
+    for(let i=0;i<course.total;i++) {
+      if(state[`${cid}_${i}`]) {
+        totalDone++;
+        if(cid==="sql") sqlDone++;
+        if(cid==="py")  pyDone++;
+      }
+    }
+  });
+  const sqlTotal=30, pyTotal=55, focus=sqlTotal+pyTotal;
+  const focusDone = sqlDone + pyDone;
+  const pct = Math.round(focusDone/focus*100);
+
+  document.getElementById("n-done").textContent = totalDone;
+  document.getElementById("n-sql").textContent  = sqlDone;
+  document.getElementById("n-py").textContent   = pyDone;
+  document.getElementById("ovr-pct").textContent = pct+"%";
+  document.getElementById("ovr-bar").style.width  = pct+"%";
+  document.getElementById("bar-sql").style.width  = Math.round(sqlDone/sqlTotal*100)+"%";
+  document.getElementById("bar-py").style.width   = Math.round(pyDone/pyTotal*100)+"%";
+
+  // streak — consecutive days in sql then py
+  let streak = 0;
+  const allKeys = Object.entries(COURSES).flatMap(([cid,c]) =>
+    Array.from({length:c.total},(_,i)=>`${cid}_${i}`)
+  );
+  for (const k of allKeys) {
+    if (state[k]) streak++;
+    else break;
+  }
+  document.getElementById("n-str").textContent = streak;
+}
+
+function render() {
+  updateStats();
+  let html = "";
+  const order = ["sql","py","xl","bi"];
+  order.forEach(cid => {
+    const course = COURSES[cid];
+    if (currentFilter !== "all" && currentFilter !== cid &&
+        currentFilter !== "done" && currentFilter !== "todo") return;
+
+    const items = course.items.map((task,idx) => ({task,idx,done:!!state[`${cid}_${idx}`]}));
+    const filtered = currentFilter === "done" ? items.filter(x=>x.done) :
+                     currentFilter === "todo" ? items.filter(x=>!x.done) : items;
+    if (!filtered.length) return;
+
+    const doneCount = items.filter(x=>x.done).length;
+    const pct = Math.round(doneCount/course.total*100);
+
+    html += `
+      <div class="course-block" id="block-${cid}">
+        <div class="course-header ${cid}">
+          <span class="ch-icon">${{sql:"🗄️",py:"🐍",xl:"📊",bi:"⚡"}[cid]}</span>
+          <span class="ch-title">${course.label}</span>
+          <span class="ch-count">${doneCount} / ${course.total}</span>
+          <div class="ch-pbar-wrap"><div class="ch-pbar" style="width:${pct}%"></div></div>
+        </div>`;
+
+    filtered.forEach(({task,idx,done}) => {
+      const dateStr = state[`${cid}_${idx}`] === "SkyllX" ? "SkyllX ✓" : (state[`${cid}_${idx}`]||"");
+      html += `
+        <div class="day-row ${cid}${done?" done":""}" onclick="toggle('${cid}',${idx})">
+          <div class="cb">
+            <svg class="checkmark" viewBox="0 0 12 12" fill="none">
+              <polyline points="1.5,6 4.5,9 10.5,3" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="day-num">${String(idx+1).padStart(2,"0")}</span>
+          <span class="task-text">${task}</span>
+          <span class="date-stamp">${dateStr}</span>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  if (!html) html = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px;">No items match this filter.</div>`;
+  document.getElementById("list").innerHTML = html;
+}
+
+function resetAll() {
+  if (confirm("Reset all your tracked progress? SkyllX pre-filled data will also clear.")) {
+    state = {};
+    localStorage.removeItem("skyllx_init_done");
+    save(); initSkyllxProgress(); render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
